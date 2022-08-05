@@ -97,6 +97,8 @@ private:
     bool parseMSWindowsArg(ArgsBase& argsBase, Argv& argv);
     bool parseCarbonArg(ArgsBase& argsBase, Argv& argv);
     bool parseXWindowsArg(ArgsBase& argsBase, Argv& argv);
+    bool parseEiArg(ArgsBase& argsBase, Argv& argv);
+    bool useX11(Argv& argv);
 
 private:
     App* m_app;

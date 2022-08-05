@@ -110,6 +110,14 @@ ArgParser::parseServerArgs(ServerArgs& args, int argc, const char* const* argv)
     updateCommonArgs(a);
 
     try {
+#if defined(WINAPI_XWINDOWS) || defined(WINAPI_LIBEI)
+        // Need to check for X11 vs libei first because the platform
+        // args depend on that.
+        // build system guarantees at least one of ei/x11 is set
+        args.m_useX11 = useX11(a);
+        args.m_useEi = !args.m_useX11;
+#endif
+
         while (!a.empty()) {
             const char *optarg = NULL;
 
@@ -156,6 +164,14 @@ ArgParser::parseClientArgs(ClientArgs& args, int argc, const char* const* argv)
     try {
         if (a.empty())
             throw XArgvParserError("a server address or name is required");
+
+#if defined(WINAPI_XWINDOWS) || defined(WINAPI_LIBEI)
+        // Need to check for X11 vs libei first because the platform
+        // args depend on that.
+        // build system guarantees at least one of ei/x11 is set
+        args.m_useX11 = useX11(a);
+        args.m_useEi = !args.m_useX11;
+#endif
 
         while (!a.empty()) {
             const char *optarg = NULL;
@@ -230,7 +246,9 @@ ArgParser::parseXWindowsArg(ArgsBase& argsBase, Argv& argv)
 {
     const char* optarg = NULL;
 
-    if (argv.shift("-display", "--display", &optarg)) {
+    if (argv.shift("--use-x11")) {
+        // noop
+    } else if (argv.shift("-display", "--display", &optarg)) {
         // use alternative display
         argsBase.m_display = optarg;
     }
@@ -245,6 +263,52 @@ ArgParser::parseXWindowsArg(ArgsBase& argsBase, Argv& argv)
 }
 #endif
 
+#if WINAPI_LIBEI
+bool
+ArgParser::parseEiArg(ArgsBase& argsBase, Argv& argv)
+{
+    if (argv.shift("--use-ei")) {
+        // noop
+    } else {
+        // option not supported here
+        return false;
+    }
+
+    return true;
+}
+#endif
+
+bool
+ArgParser::useX11(Argv& argv)
+{
+    // Defined as 1 or nothing, so we get a free true/false without ifdefs
+    auto have_x11 = !!(WINAPI_XWINDOWS - 0);
+    auto have_ei = !!(WINAPI_LIBEI - 0);
+
+    // Only one of the two built-in
+    if (have_x11 != have_ei)
+        return have_x11;
+
+    if (argv.contains("--use-x11") ||
+        argv.contains("--display") || argv.contains("-display"))
+        return true;
+
+    if (argv.contains("--use-ei"))
+        return false;
+
+    // DISPLAY is basically always set (Xwayland uses it too).
+    // So let's assume if WAYLAND_DISPLAY is present or LIBEI_SOCKET
+    // we probably have a machine that wants to use that.
+    // Otherwise, fall back to X11.
+    // A better check would be to check for the XWAYLAND extension, could add
+    // that in the future (at the time of writing no released X server supports
+    // it).
+    if (std::getenv("WAYLAND_DISPLAY") || std::getenv("LIBEI_SOCKET"))
+        return false;
+
+    return true;
+}
+
 bool
 ArgParser::parsePlatformArg(ArgsBase& argsBase, Argv& argv)
 {
@@ -254,8 +318,14 @@ ArgParser::parsePlatformArg(ArgsBase& argsBase, Argv& argv)
 #if WINAPI_CARBON
     return parseCarbonArg(argsBase, argv);
 #endif
+
 #if WINAPI_XWINDOWS
-    return parseXWindowsArg(argsBase, argv);
+    if (argsBase.m_useX11)
+        return parseXWindowsArg(argsBase, argv);
+#endif
+#if WINAPI_LIBEI
+    if (argsBase.m_useEi)
+        return parseEiArg(argsBase, argv);
 #endif
     return false;
 }
