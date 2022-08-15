@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <iostream>
+
 NonBlockingStream::NonBlockingStream(int fd) :
     _fd(fd)
 {
@@ -53,6 +55,7 @@ bool NonBlockingStream::try_read_char(char &ch) const
     int result = read(_fd, &ch, 1);
     if (result == 1)
         return true;
+    std::cout << "result " << result << " with errno " << errno << std::endl;
     assert(result == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
     return false;
 }
