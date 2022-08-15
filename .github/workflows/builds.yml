@@ -52,3 +52,98 @@ jobs:
         run: |
             cd ${B_BUILD_DIR}
             ctest --verbose
+
+  mac-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-11, macos-12]
+
+    env:
+      VERBOSE: 1
+      TERM: xterm-256color
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      # Runs a set of commands using the runners shell
+      - name: Setup the image
+        run: |
+          brew update
+          brew install qt5
+          brew install ninja
+      - name: Run the build
+        run: sh -x ./clean_build.sh
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Publish the DMG for ${{ matrix.os }}
+          path: ./build/bundle/*.dmg
+        if: ${{ env.B_BUILD_TYPE == 'Release' }}
+
+  win-build-2019:
+    runs-on: windows-2019
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - name: Download Bonjour SDK-like
+        run: ./azure-pipelines/download_install_bonjour_sdk_like.ps1
+      - name: Installing QT
+        run: ./azure-pipelines/download_install_qt.ps1
+      - name: Get build env
+        run: Copy-Item azure-pipelines\build_env_tmpl.bat build_env.bat
+      - name: Build
+        run: call "%ProgramFiles(x86)%\Microsoft Visual Studio\2019\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64 && clean_build.bat
+        shell: cmd
+      - uses: papeloto/action-zip@v1
+        with:
+          files: build\bin\${{ env.CI_ENV_BUILD_TYPE }}
+          dest: ${{ env.CI_ENV_BUILD_TYPE }}.zip
+        name: Archive Completed Build Directory
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Windows ${{ env.CI_ENV_BUILD_TYPE }}
+          path: ${{ env.CI_ENV_BUILD_TYPE }}.zip
+
+  win-build-2022:
+    runs-on: windows-2022
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - name: Download Bonjour SDK-like
+        run: ./azure-pipelines/download_install_bonjour_sdk_like.ps1
+      - name: Installing QT
+        run: ./azure-pipelines/download_install_qt.ps1
+      - name: Get build env
+        run: Copy-Item azure-pipelines\build_env_tmpl.bat build_env.bat
+      - name: Build
+        run: call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=amd64 && clean_build.bat
+        shell: cmd
+      - uses: papeloto/action-zip@v1
+        with:
+          files: build\bin\${{ env.CI_ENV_BUILD_TYPE }}
+          dest: ${{ env.CI_ENV_BUILD_TYPE }}.zip
+        name: Archive Completed Build Directory
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Windows ${{ env.CI_ENV_BUILD_TYPE }}
+          path: ${{ env.CI_ENV_BUILD_TYPE }}.zip
+      - name: Build the Installer
+        run: .\build_installer.bat
+        if: ${{ env.CI_ENV_BUILD_TYPE == 'Release' }}
+        shell: cmd
+      - uses: actions/upload-artifact@v3
+        if: ${{ env.CI_ENV_BUILD_TYPE == 'Release' }}
+        with:
+          name: Publish the Installer
+          path: .\build\installer-inno\bin
