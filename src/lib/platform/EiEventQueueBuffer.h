@@ -21,6 +21,9 @@
 #include "config.h"
 
 #include "base/IEventQueueBuffer.h"
+#include "mt/Thread.h"
+#include "platform/EiScreen.h"
+#include "inputleap/IScreen.h"
 
 #include <libei.h>
 
@@ -33,7 +36,7 @@ class IEventQueue;
 //! Event queue buffer for Ei
 class EiEventQueueBuffer : public IEventQueueBuffer {
 public:
-    EiEventQueueBuffer(struct ei* ei, IEventQueue* events);
+    EiEventQueueBuffer(EiScreen *screen, struct ei* ei, IEventQueue* events);
     ~EiEventQueueBuffer();
 
     // IEventQueueBuffer overrides

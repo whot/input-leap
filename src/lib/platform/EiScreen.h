@@ -29,11 +29,12 @@
 
 class EiClipboard;
 class EiKeyState;
+class PortalRemoteDesktop;
 
 //! Implementation of IPlatformScreen for X11
 class EiScreen : public PlatformScreen {
 public:
-    EiScreen(bool isPrimary, IEventQueue* events);
+    EiScreen(bool isPrimary, IEventQueue* events, bool use_portal);
     ~EiScreen();
 
     //! @name manipulators
@@ -85,6 +86,7 @@ public:
 protected:
     // IPlatformScreen overrides
     void handleSystemEvent(const Event&, void*) override;
+    void handleConnectedToEISEvent(const Event& sysevent, void* data);
     void updateButtons() override;
     IKeyState*  getKeyState() const override;
 
@@ -111,4 +113,6 @@ private:
     uint32_t m_x, m_y, m_w, m_h;
 
     mutable std::mutex mutex_;
+
+    PortalRemoteDesktop *m_PortalRemoteDesktop;
 };

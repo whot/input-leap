@@ -54,4 +54,5 @@ public:
     inputleap::fs::path m_pluginDirectory;
     bool m_useX11;
     bool m_useEi;
+    bool m_usePortal; // use the XDG portals for ei
 };

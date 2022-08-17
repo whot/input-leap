@@ -43,7 +43,8 @@ m_enableCrypto(true),
 m_profileDirectory(),
 m_pluginDirectory(""),
 m_useX11(false),
-m_useEi(false)
+m_useEi(false),
+m_usePortal(true)
 {
 }
 

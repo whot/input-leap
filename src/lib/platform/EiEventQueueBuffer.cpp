@@ -21,6 +21,7 @@
 
 #include "mt/Thread.h"
 #include "base/Event.h"
+#include "base/EventTypes.h"
 #include "base/Log.h"
 #include "base/IEventQueue.h"
 
@@ -32,7 +33,7 @@
 
 class EventQueueTimer { };
 
-EiEventQueueBuffer::EiEventQueueBuffer(struct ei *ei, IEventQueue* events) :
+EiEventQueueBuffer::EiEventQueueBuffer(EiScreen *screen, struct ei *ei, IEventQueue* events) :
     m_events(events),
     m_ei(ei_ref(ei))
 {

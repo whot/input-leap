@@ -19,6 +19,7 @@
 #include "platform/EiScreen.h"
 
 #include "platform/EiEventQueueBuffer.h"
+#include "platform/PortalRemoteDesktop.h"
 #include "platform/EiKeyState.h"
 #include "inputleap/Clipboard.h"
 #include "inputleap/KeyMap.h"
@@ -42,7 +43,7 @@
 // EiScreen
 //
 //
-EiScreen::EiScreen(bool isPrimary, IEventQueue* events) :
+EiScreen::EiScreen(bool isPrimary, IEventQueue* events, bool usePortal) :
     PlatformScreen(events),
     m_isPrimary(isPrimary),
     m_events(events),
@@ -59,11 +60,6 @@ EiScreen::EiScreen(bool isPrimary, IEventQueue* events) :
     m_ei = ei_new(NULL);
     ei_log_set_priority(m_ei, EI_LOG_PRIORITY_DEBUG);
     ei_configure_name(m_ei, "InputLeap client");
-    auto rc = ei_setup_backend_socket(m_ei, NULL);
-    if (rc != 0) {
-        LOG((CLOG_DEBUG "ei init error: %s", strerror(-rc)));
-        throw XArch("Failed to init ei context");
-    }
 
     m_keyState = new EiKeyState(this, events);
     // install event handlers
@@ -71,8 +67,22 @@ EiScreen::EiScreen(bool isPrimary, IEventQueue* events) :
                             new TMethodEventJob<EiScreen>(this,
                                 &EiScreen::handleSystemEvent));
 
+    if (usePortal) {
+        m_events->adoptHandler(m_events->forEiScreen().connectedToEIS(),
+                               getEventTarget(),
+                                new TMethodEventJob<EiScreen>(this,
+                                    &EiScreen::handleConnectedToEISEvent));
+        m_PortalRemoteDesktop = new PortalRemoteDesktop(this, m_events);
+    } else {
+        auto rc = ei_setup_backend_socket(m_ei, NULL);
+        if (rc != 0) {
+            LOG((CLOG_DEBUG "ei init error: %s", strerror(-rc)));
+            throw XArch("Failed to init ei context");
+        }
+    }
+
     // install the platform event queue
-    m_events->adoptBuffer(new EiEventQueueBuffer(m_ei, m_events));
+    m_events->adoptBuffer(new EiEventQueueBuffer(this, m_ei, m_events));
 }
 
 EiScreen::~EiScreen()
@@ -88,6 +98,8 @@ EiScreen::~EiScreen()
         ei_device_unref(*it);
     m_ei_devices.clear();
     ei_unref(m_ei);
+
+    delete m_PortalRemoteDesktop;
 }
 
 void*
@@ -419,6 +431,18 @@ EiScreen::removeDevice(struct ei_device *device)
     }
 
     updateShape();
+}
+
+void
+EiScreen::handleConnectedToEISEvent(const Event& sysevent, void* data)
+{
+    int fd = *reinterpret_cast<int*>(sysevent.getData());
+    LOG((CLOG_DEBUG "We have an EIS connection! fd is %d", fd));
+
+    auto rc = ei_setup_backend_fd(m_ei, fd);
+    if (rc != 0) {
+        LOG((CLOG_NOTE "Failed to set up ei: %s", strerror(-rc)));
+    }
 }
 
 void

@@ -269,6 +269,8 @@ ArgParser::parseEiArg(ArgsBase& argsBase, Argv& argv)
 {
     if (argv.shift("--use-ei")) {
         // noop
+    } else if (argv.shift("--disable-portal")) {
+        argsBase.m_usePortal = false;
     } else {
         // option not supported here
         return false;
@@ -293,7 +295,7 @@ ArgParser::useX11(Argv& argv)
         argv.contains("--display") || argv.contains("-display"))
         return true;
 
-    if (argv.contains("--use-ei"))
+    if (argv.contains("--use-ei") || argv.contains("--disable-portal"))
         return false;
 
     // DISPLAY is basically always set (Xwayland uses it too).
