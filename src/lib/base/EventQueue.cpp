@@ -37,6 +37,7 @@ EVENT_TYPE_ACCESSOR(IDataSocket)
 EVENT_TYPE_ACCESSOR(IListenSocket)
 EVENT_TYPE_ACCESSOR(ISocket)
 EVENT_TYPE_ACCESSOR(OSXScreen)
+EVENT_TYPE_ACCESSOR(EiScreen)
 EVENT_TYPE_ACCESSOR(ClientListener)
 EVENT_TYPE_ACCESSOR(ClientProxy)
 EVENT_TYPE_ACCESSOR(ClientProxyUnknown)
@@ -75,6 +76,7 @@ EventQueue::EventQueue() :
     m_typesForIListenSocket(nullptr),
     m_typesForISocket(nullptr),
     m_typesForOSXScreen(nullptr),
+    m_typesForEiScreen(nullptr),
     m_typesForClientListener(nullptr),
     m_typesForClientProxy(nullptr),
     m_typesForClientProxyUnknown(nullptr),

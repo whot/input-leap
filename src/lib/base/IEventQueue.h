@@ -39,6 +39,7 @@ class IDataSocketEvents;
 class IListenSocketEvents;
 class ISocketEvents;
 class OSXScreenEvents;
+class EiScreenEvents;
 class ClientListenerEvents;
 class ClientProxyEvents;
 class ClientProxyUnknownEvents;
@@ -231,6 +232,7 @@ public:
     virtual IListenSocketEvents& forIListenSocket() = 0;
     virtual ISocketEvents& forISocket() = 0;
     virtual OSXScreenEvents& forOSXScreen() = 0;
+    virtual EiScreenEvents& forEiScreen() = 0;
     virtual ClientListenerEvents& forClientListener() = 0;
     virtual ClientProxyEvents& forClientProxy() = 0;
     virtual ClientProxyUnknownEvents& forClientProxyUnknown() = 0;

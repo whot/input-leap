@@ -340,6 +340,17 @@ private:
     Event::Type m_confirmSleep;
 };
 
+class EiScreenEvents : public EventTypes {
+public:
+    EiScreenEvents() :
+        m_connectedToEIS(Event::kUnknown) { }
+
+    Event::Type connectedToEIS();
+
+private:
+    Event::Type m_connectedToEIS;
+};
+
 class ClientListenerEvents : public EventTypes {
 public:
     ClientListenerEvents() :

@@ -53,6 +53,7 @@ public:
     MOCK_METHOD0(forIListenSocket, IListenSocketEvents&());
     MOCK_METHOD0(forISocket, ISocketEvents&());
     MOCK_METHOD0(forOSXScreen, OSXScreenEvents&());
+    MOCK_METHOD0(forEiScreen, EiScreenEvents&());
     MOCK_METHOD0(forClientListener, ClientListenerEvents&());
     MOCK_METHOD0(forClientProxy, ClientProxyEvents&());
     MOCK_METHOD0(forClientProxyUnknown, ClientProxyUnknownEvents&());

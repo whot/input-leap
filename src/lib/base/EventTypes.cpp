@@ -106,6 +106,11 @@ REGISTER_EVENT(ISocket, stopRetry)
 REGISTER_EVENT(OSXScreen, confirmSleep)
 
 //
+// EiScreen
+//
+REGISTER_EVENT(EiScreen, connectedToEIS)
+
+//
 // ClientListener
 //
 

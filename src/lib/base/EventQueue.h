@@ -142,6 +142,7 @@ public:
     IListenSocketEvents& forIListenSocket() override;
     ISocketEvents& forISocket() override;
     OSXScreenEvents& forOSXScreen() override;
+    EiScreenEvents& forEiScreen() override;
     ClientListenerEvents& forClientListener() override;
     ClientProxyEvents& forClientProxy() override;
     ClientProxyUnknownEvents& forClientProxyUnknown() override;
@@ -164,6 +165,7 @@ private:
     IListenSocketEvents* m_typesForIListenSocket;
     ISocketEvents* m_typesForISocket;
     OSXScreenEvents* m_typesForOSXScreen;
+    EiScreenEvents* m_typesForEiScreen;
     ClientListenerEvents* m_typesForClientListener;
     ClientProxyEvents* m_typesForClientProxy;
     ClientProxyUnknownEvents* m_typesForClientProxyUnknown;
