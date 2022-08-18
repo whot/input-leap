@@ -20,6 +20,7 @@
 
 #include "platform/EiEventQueueBuffer.h"
 #include "platform/PortalRemoteDesktop.h"
+#include "platform/PortalInputCapture.h"
 #include "platform/EiKeyState.h"
 #include "inputleap/Clipboard.h"
 #include "inputleap/KeyMap.h"
@@ -54,9 +55,6 @@ EiScreen::EiScreen(bool isPrimary, IEventQueue* events, bool usePortal) :
     m_ei_keyboard(NULL),
     m_ei_abs(NULL)
 {
-    // Server isn't supported yet
-    assert(!isPrimary);
-
     m_ei = ei_new(NULL);
     ei_log_set_priority(m_ei, EI_LOG_PRIORITY_DEBUG);
     ei_configure_name(m_ei, "InputLeap client");
@@ -72,7 +70,15 @@ EiScreen::EiScreen(bool isPrimary, IEventQueue* events, bool usePortal) :
                                getEventTarget(),
                                 new TMethodEventJob<EiScreen>(this,
                                     &EiScreen::handleConnectedToEISEvent));
-        m_PortalRemoteDesktop = new PortalRemoteDesktop(this, m_events);
+        if (isPrimary) {
+#if HAVE_LIBPORTAL_INPUTCAPTURE
+            m_PortalInputCapture = new PortalInputCapture(this, m_events);
+#else
+            throw XArch("Missing libportal InputCapture portal support, cannot continue");
+#endif
+        } else {
+            m_PortalRemoteDesktop = new PortalRemoteDesktop(this, m_events);
+        }
     } else {
         auto rc = ei_setup_backend_socket(m_ei, NULL);
         if (rc != 0) {
@@ -100,6 +106,9 @@ EiScreen::~EiScreen()
     ei_unref(m_ei);
 
     delete m_PortalRemoteDesktop;
+#if HAVE_LIBPORTAL_INPUTCAPTURE
+    delete m_PortalInputCapture;
+#endif
 }
 
 void*
@@ -138,7 +147,6 @@ void
 EiScreen::reconfigure(uint32_t)
 {
     // do nothing
-    assert(!"Not Supported");
 }
 
 void
@@ -152,7 +160,6 @@ uint32_t
 EiScreen::registerHotKey(KeyID key, KeyModifierMask mask)
 {
     // FIXME
-    assert(!"Not Implemented");
     return 0;
 }
 
@@ -160,34 +167,29 @@ void
 EiScreen::unregisterHotKey(uint32_t id)
 {
     // FIXME
-    assert(!"Not Implemented");
 }
 
 void
 EiScreen::fakeInputBegin()
 {
-    assert(!"Not Implemented");
     // FIXME -- not implemented
 }
 
 void
 EiScreen::fakeInputEnd()
 {
-    assert(!"Not Implemented");
     // FIXME -- not implemented
 }
 
 int32_t
 EiScreen::getJumpZoneSize() const
 {
-    assert(!"Not Implemented");
     return 1;
 }
 
 bool
 EiScreen::isAnyMouseButtonDown(uint32_t& buttonID) const
 {
-    assert(!"Not Implemented");
     return false;
 }
 
@@ -400,6 +402,7 @@ EiScreen::addDevice(struct ei_device *device)
             LOG((CLOG_WARN "keyboard device %s does not have a keymap, we are guessing", ei_device_get_name(device)));
             m_keyState->initDefaultKeymap();
         }
+        m_keyState->updateKeyMap();
     }
 
     if (!m_ei_abs && ei_device_has_capability(device, EI_DEVICE_CAP_POINTER_ABSOLUTE))

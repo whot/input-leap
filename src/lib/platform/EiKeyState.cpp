@@ -36,6 +36,11 @@ EiKeyState::EiKeyState(EiScreen* impl, IEventQueue* events) :
 {
     m_impl = impl;
     m_xkb = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
+    // FIXME: PrimaryClient->enable() calls into our keymap, so we must have
+    // one during initial startup - even before we know what our actual keymap is.
+    // Once we get the actual keymap from EIS, we swap it out so hopefully that's enough.
+    initDefaultKeymap();
 }
 
 void
@@ -70,6 +75,7 @@ EiKeyState::init(int fd, size_t len)
         return;
     }
 
+    xkb_keymap_unref(m_xkb_keymap);
     m_xkb_keymap = keymap;
 }
 

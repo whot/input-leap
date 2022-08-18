@@ -52,6 +52,9 @@
 #include <signal.h>
 #include "platform/XWindowsScreen.h"
 #endif
+#if WINAPI_LIBEI
+#include "platform/EiScreen.h"
+#endif
 #if WINAPI_CARBON
 #include "platform/OSXScreen.h"
 #endif
@@ -622,9 +625,15 @@ ServerApp::createScreen()
         true, args().m_noHooks, args().m_stopOnDeskSwitch, m_events), m_events);
 #endif
 #if WINAPI_XWINDOWS
-    return new inputleap::Screen(new XWindowsScreen(
-        new XWindowsImpl(),
-        args().m_display, true, 0, m_events), m_events);
+    if (args().m_useX11)
+        return new inputleap::Screen(new XWindowsScreen(
+            new XWindowsImpl(),
+            args().m_display, true, 0, m_events), m_events);
+#endif
+#if WINAPI_LIBEI
+    if (args().m_useEi)
+        return new inputleap::Screen(new EiScreen(
+            true, m_events, true /* usePortal */), m_events);
 #endif
 #if WINAPI_CARBON
     return new inputleap::Screen(new OSXScreen(m_events, true), m_events);
