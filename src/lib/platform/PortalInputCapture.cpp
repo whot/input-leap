@@ -186,7 +186,8 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
         // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
         // Since the implementation is supposed to reject the ones in the wrong
         // place, we can just install barriers everywhere and let EIS figure it out.
-        // Also a lot easier to implement for now...
+        // Also a lot easier to implement for now though it doesn't cover
+        // differently-sized screens...
         m_barriers.emplace_back(*this, x, y, x + w, y);
         m_barriers.emplace_back(*this, x + w, y, x + w, y + h);
         m_barriers.emplace_back(*this, x, y, x, y + h);
