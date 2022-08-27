@@ -143,6 +143,10 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
                 return;
             }
     }
+    // Socket ownership is transferred to the EiScreen
+    m_events->addEvent(Event(m_events->forEiScreen().connectedToEIS(),
+                             m_screen->getEventTarget(),
+                             new int(fd)));
 
     // FIXME: the lambda trick doesn't work here for unknown reasons, we need
     // the static function
