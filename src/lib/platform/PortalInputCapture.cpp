@@ -162,33 +162,42 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
     m_zonesChangedSignalID = g_signal_connect(G_OBJECT(m_session), "zones-changed",
                                               G_CALLBACK(cb_ZonesChangedCB),
                                               this);
-    m_barriers.clear();
 
-    // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
-    // Since the implementation is supposed to reject the ones in the wrong
-    // place, we can just install barriers everywhere and let EIS figure it out.
-    // Also a lot easier to implement for now...
     auto zones = xdp_input_capture_session_get_zones(session);
+
+    // count the zones so we can pre-allocate our barriers vector.
+    // we don't really care about failed barriers, storage is negligable so we
+    // just keep them around until we're done with the zones
+    auto zones_it = zones;
+    auto nzones = 0;
+    while (zones_it != nullptr) {
+        zones_it = zones_it->next;
+        nzones++;
+    }
+
+    m_barriers.clear();
+    m_barriers.reserve(nzones * 4);  // our max is 4 barriers per zone
+
     while (zones != nullptr) {
         guint w, h;
         gint x, y;
         g_object_get(zones->data, "width", &w, "height", &h, "x", &x, "y", &y, NULL);
 
-        auto pb = std::make_unique<PortalInputCapturePointerBarrier*>(new PortalInputCapturePointerBarrier(*this, x, y, x + w, y));
-        m_barriers.emplace_back(std::move(pb));
-        pb = std::make_unique<PortalInputCapturePointerBarrier*>(new PortalInputCapturePointerBarrier(*this, x + w, y, x + w, y + h));
-        m_barriers.emplace_back(std::move(pb));
-        pb = std::make_unique<PortalInputCapturePointerBarrier*>(new PortalInputCapturePointerBarrier(*this, x, y, x, y + h));
-        m_barriers.emplace_back(std::move(pb));
-        pb = std::make_unique<PortalInputCapturePointerBarrier*>(new PortalInputCapturePointerBarrier(*this, x, y + h, x + w, y + h));
-        m_barriers.emplace_back(std::move(pb));
+        // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
+        // Since the implementation is supposed to reject the ones in the wrong
+        // place, we can just install barriers everywhere and let EIS figure it out.
+        // Also a lot easier to implement for now...
+        m_barriers.emplace_back(*this, x, y, x + w, y);
+        m_barriers.emplace_back(*this, x + w, y, x + w, y + h);
+        m_barriers.emplace_back(*this, x, y, x, y + h);
+        m_barriers.emplace_back(*this, x, y + h, x + w, y + h);
 
         zones = zones->next;
     }
 
     std::vector<XdpInputCapturePointerBarrier*> bs;
-    for (auto const &ptr : m_barriers) {
-        bs.emplace_back((*ptr)->getBarrier());
+    for (auto const &b : m_barriers) {
+        bs.emplace_back(b.getBarrier());
     }
     bs.emplace_back(nullptr);
     xdp_input_capture_session_set_pointer_barriers(session, bs.data(), NULL);

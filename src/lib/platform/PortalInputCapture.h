@@ -33,9 +33,10 @@ public:
     PortalInputCapturePointerBarrier(PortalInputCapture &portal, int x1, int y1, int x2, int y2);
     ~PortalInputCapturePointerBarrier();
 
-    bool isActive() { return m_isActive; }
-    unsigned int getId() { return m_id; }
-    XdpInputCapturePointerBarrier *getBarrier() { return m_barrier; }
+
+    bool isActive() const { return m_isActive; }
+    unsigned int getId()  { return m_id; }
+    XdpInputCapturePointerBarrier *getBarrier() const { return m_barrier; }
 
     void cb_BarrierActive(XdpInputCapturePointerBarrier *barrier, gboolean active);
 
@@ -43,6 +44,23 @@ public:
     static void cb_BarrierActiveCB(XdpInputCapturePointerBarrier *barrier, gboolean active, gpointer data) {
         reinterpret_cast<PortalInputCapturePointerBarrier*>(data)->cb_BarrierActive(barrier, active);
     } ;
+
+    PortalInputCapturePointerBarrier(const PortalInputCapturePointerBarrier& other):
+        m_portal(other.m_portal),
+        m_id(other.m_id),
+        m_x1(other.m_x1),
+        m_x2(other.m_x2),
+        m_y1(other.m_y1),
+        m_y2(other.m_y2),
+        m_isActive(other.m_isActive),
+        m_activeSignalID(other.m_activeSignalID),
+        m_barrier(g_object_ref(other.m_barrier))
+    {
+        // We need the copy construtor to exist for vector.resize() but it
+        // never needs to be called, the vector has all the objects and it's
+        // big enough that we never need reallocation.
+        assert(!"use a reference to this object instead");
+    }
 
 private:
     PortalInputCapture& m_portal;
@@ -103,7 +121,7 @@ private:
 
     bool m_enabled;
 
-    std::vector<std::unique_ptr<PortalInputCapturePointerBarrier*>> m_barriers;
+    std::vector<PortalInputCapturePointerBarrier> m_barriers;
 };
 
 #endif
