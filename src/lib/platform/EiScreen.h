@@ -96,6 +96,12 @@ protected:
     void removeDevice(struct ei_device* device);
 
 private:
+    void onKeyEvent(struct ei_event *event);
+    void onButtonEvent(struct ei_event *event);
+    void onMotionEvent(struct ei_event *event);
+    void onAbsMotionEvent(struct ei_event *event);
+
+private:
     // true if screen is being used as a primary screen, false otherwise
     bool m_isPrimary;
     IEventQueue* m_events;
@@ -112,6 +118,12 @@ private:
     struct ei_device *m_ei_abs;
 
     uint32_t m_x, m_y, m_w, m_h;
+
+    // true if mouse has entered the screen
+    bool m_isOnScreen;
+
+    // last pointer position
+    int32_t m_xCursor, m_yCursor;
 
     mutable std::mutex mutex_;
 

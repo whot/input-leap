@@ -53,9 +53,13 @@ EiScreen::EiScreen(bool isPrimary, IEventQueue* events, bool usePortal) :
     m_ei_seat(NULL),
     m_ei_pointer(NULL),
     m_ei_keyboard(NULL),
-    m_ei_abs(NULL)
+    m_ei_abs(NULL),
+    m_isOnScreen(m_isPrimary)
 {
-    m_ei = ei_new(NULL);
+    if (isPrimary)
+        m_ei = ei_new_receiver(NULL); // we receive from the display server
+    else
+        m_ei = ei_new_sender(NULL); // we send to the display server
     ei_log_set_priority(m_ei, EI_LOG_PRIORITY_DEBUG);
     ei_configure_name(m_ei, "InputLeap client");
 
@@ -271,6 +275,8 @@ EiScreen::disable()
 void
 EiScreen::enter()
 {
+    LOG((CLOG_DEBUG "%s screen enter", m_isPrimary ? "primary" : "secondary"));
+    m_isOnScreen = true;
     if (m_ei_pointer)
         ei_device_start_emulating(m_ei_pointer);
     if (m_ei_keyboard)
@@ -282,6 +288,7 @@ EiScreen::enter()
 bool
 EiScreen::leave()
 {
+    LOG((CLOG_DEBUG "%s screen leave", m_isPrimary ? "primary" : "secondary"));
     if (m_ei_pointer)
         ei_device_stop_emulating(m_ei_pointer);
     if (m_ei_keyboard)
@@ -289,6 +296,7 @@ EiScreen::leave()
     if (m_ei_abs)
         ei_device_stop_emulating(m_ei_abs);
 
+    m_isOnScreen = false;
     return true;
 }
 
@@ -437,6 +445,44 @@ EiScreen::removeDevice(struct ei_device *device)
 }
 
 void
+EiScreen::onKeyEvent(struct ei_event *event)
+{
+    LOG((CLOG_DEBUG "onKeyEvent"));
+    assert(m_isPrimary);
+}
+
+void
+EiScreen::onButtonEvent(struct ei_event *event)
+{
+    LOG((CLOG_DEBUG "onButtonEvent"));
+    assert(m_isPrimary);
+}
+
+void
+EiScreen::onMotionEvent(struct ei_event *event)
+{
+    LOG((CLOG_DEBUG "onMotionEvent"));
+    assert(m_isPrimary);
+
+    double dx = ei_event_pointer_get_dx(event),
+           dy = ei_event_pointer_get_dy(event);
+
+    m_xCursor += dx;
+    m_yCursor += dy;
+
+    // motion on primary screen
+    if (m_isOnScreen)
+        m_events->addEvent(Event(m_events->forIPrimaryScreen().motionOnPrimary(),
+                                 MotionInfo::alloc(m_xCursor, m_yCursor)));
+}
+
+void
+EiScreen::onAbsMotionEvent(struct ei_event *event)
+{
+    assert(m_isPrimary);
+}
+
+void
 EiScreen::handleConnectedToEISEvent(const Event& sysevent, void* data)
 {
     int fd = *reinterpret_cast<int*>(sysevent.getData());
@@ -508,12 +554,25 @@ EiScreen::handleSystemEvent(const Event& sysevent, void* data)
 
             // events below are for a receiver context (barriers)
             case EI_EVENT_FRAME:
+                break;
             case EI_EVENT_DEVICE_START_EMULATING:
+                LOG((CLOG_DEBUG "device %s starts emulating", ei_device_get_name(device)));
+                break;
             case EI_EVENT_DEVICE_STOP_EMULATING:
+                LOG((CLOG_DEBUG "device %s stops emulating", ei_device_get_name(device)));
+                break;
             case EI_EVENT_KEYBOARD_KEY:
+                onKeyEvent(event);
+                break;
             case EI_EVENT_POINTER_BUTTON:
+                onButtonEvent(event);
+                break;
             case EI_EVENT_POINTER_MOTION:
+                onMotionEvent(event);
+                break;
             case EI_EVENT_POINTER_MOTION_ABSOLUTE:
+                onAbsMotionEvent(event);
+                break;
             case EI_EVENT_TOUCH_UP:
             case EI_EVENT_TOUCH_MOTION:
             case EI_EVENT_TOUCH_DOWN:
