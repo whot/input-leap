@@ -28,6 +28,7 @@
 
 enum signals {
     SESSION_CLOSED,
+    DISABLED,
     ACTIVATED,
     DEACTIVATED,
     ZONES_CHANGED,
@@ -162,6 +163,9 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
     m_signals[SESSION_CLOSED] = g_signal_connect(G_OBJECT(session), "closed",
                                                 G_CALLBACK(cb_SessionClosedCB),
                                                 this);
+    m_signals[DISABLED] = g_signal_connect(G_OBJECT(session), "disabled",
+                                           G_CALLBACK(cb_DisabledCB),
+                                           this);
     m_signals[ACTIVATED] =g_signal_connect(G_OBJECT(m_session), "activated",
                                            G_CALLBACK(cb_ActivatedCB),
                                            this);
@@ -228,6 +232,25 @@ PortalInputCapture::enable()
         xdp_input_capture_session_enable(m_session);
         m_enabled = true;
     }
+}
+
+void
+PortalInputCapture::cb_Disabled(XdpInputCaptureSession *session)
+{
+    LOG((CLOG_DEBUG "We are disabled!"));
+
+    m_enabled = false;
+
+    // FIXME: need some better heuristics here of when we want to enable again
+    // But we don't know *why* we got disabled (and it's doubtfull we ever will), so
+    // we just assume that the zones will change or something and we can re-enable again
+    // ... very soon
+    g_timeout_add(1000,
+                  [](gpointer data) -> gboolean {
+                      reinterpret_cast<PortalInputCapture*>(data)->enable();
+                  return false;
+                  },
+                  this);
 }
 
 void

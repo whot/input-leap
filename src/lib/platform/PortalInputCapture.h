@@ -42,6 +42,7 @@ private:
     void cb_SetPointerBarriers(GObject *object, GAsyncResult *res);
     void cb_SessionStarted(GObject *object, GAsyncResult *res);
     void cb_SessionClosed(XdpSession *session);
+    void cb_Disabled(XdpInputCaptureSession *session);
     void cb_Activated(XdpInputCaptureSession *session, GVariant *options);
     void cb_Deactivated(XdpInputCaptureSession *session, GVariant *options);
     void cb_ZonesChanged(XdpInputCaptureSession *session, GVariant *options);
@@ -49,6 +50,9 @@ private:
     /// g_signal_connect callback wrapper
     static void cb_SessionClosedCB(XdpSession *session, gpointer data) {
         reinterpret_cast<PortalInputCapture*>(data)->cb_SessionClosed(session);
+    } ;
+    static void cb_DisabledCB(XdpInputCaptureSession *session, gpointer data) {
+        reinterpret_cast<PortalInputCapture*>(data)->cb_Disabled(session);
     } ;
     static void cb_ActivatedCB(XdpInputCaptureSession *session, GVariant *options, gpointer data) {
         reinterpret_cast<PortalInputCapture*>(data)->cb_Activated(session, options);
