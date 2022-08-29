@@ -66,6 +66,8 @@ PortalInputCapture::~PortalInputCapture()
         g_object_unref(m_session);
     }
 
+    for (auto b : m_barriers)
+        g_object_unref(b);
     m_barriers.clear();
     g_object_unref(m_portal);
 }
@@ -163,42 +165,62 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
                                               G_CALLBACK(cb_ZonesChangedCB),
                                               this);
 
-    auto zones = xdp_input_capture_session_get_zones(session);
 
-    // count the zones so we can pre-allocate our barriers vector.
-    // we don't really care about failed barriers, storage is negligable so we
-    // just keep them around until we're done with the zones
-    auto zones_it = zones;
-    auto nzones = 0;
-    while (zones_it != nullptr) {
-        zones_it = zones_it->next;
-        nzones++;
-    }
-
+    for (auto b : m_barriers)
+        g_object_unref(b);
     m_barriers.clear();
-    m_barriers.reserve(nzones * 4);  // our max is 4 barriers per zone
 
+    auto zones = xdp_input_capture_session_get_zones(session);
     while (zones != nullptr) {
         guint w, h;
         gint x, y;
         g_object_get(zones->data, "width", &w, "height", &h, "x", &x, "y", &y, NULL);
+
+        LOG((CLOG_DEBUG "Zone at %dx%d@%d,%d", w, h, x, y));
 
         // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
         // Since the implementation is supposed to reject the ones in the wrong
         // place, we can just install barriers everywhere and let EIS figure it out.
         // Also a lot easier to implement for now though it doesn't cover
         // differently-sized screens...
-        m_barriers.emplace_back(*this, x, y, x + w, y);
-        m_barriers.emplace_back(*this, x + w, y, x + w, y + h);
-        m_barriers.emplace_back(*this, x, y, x, y + h);
-        m_barriers.emplace_back(*this, x, y + h, x + w, y + h);
-
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                                g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                             "id", m_barriers.size(),
+                                             "x1", x,
+                                             "y1", y,
+                                             "x2", x + w,
+                                             "y2", y,
+                                             NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x + w,
+                                          "y1", y,
+                                          "x2", x + w,
+                                          "y2", y + h,
+                                          NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x,
+                                          "y1", y,
+                                          "x2", x,
+                                          "y2", y + h,
+                                          NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x,
+                                          "y1", y + h,
+                                          "x2", x + w,
+                                          "y2", y + h,
+                                          NULL)));
         zones = zones->next;
     }
 
     GList *list = NULL;
     for (auto const &b : m_barriers)
-        list = g_list_append(list, b.getBarrier());
+        list = g_list_append(list, b);
     xdp_input_capture_session_set_pointer_barriers(m_session,
                                                    list,
                                                     nullptr, // cancellable
@@ -215,10 +237,26 @@ PortalInputCapture::cb_SetPointerBarriers(GObject *object, GAsyncResult *res)
 
     auto failed_list = xdp_input_capture_session_set_pointer_barriers_finish(m_session, res, &error);
     if (failed_list) {
-        LOG((CLOG_WARN "Failed to apply some barriers"));
-        // We don't actually care about this...
+        auto it = failed_list;
+        while (it) {
+            guint id;
+            g_object_get(it->data, "id", &id, NULL);
+            LOG((CLOG_WARN "Failed to apply barrier %d", id));
+
+            for (auto elem = m_barriers.begin(); elem != m_barriers.end(); elem++) {
+                if (*elem == it->data) {
+                    g_object_unref(*elem);
+                    m_barriers.erase(elem);
+                    break;
+                }
+            }
+            it = it->next;
+        }
     }
     g_list_free_full(failed_list, g_object_unref);
+
+    enable();
+
 }
 
 gboolean
@@ -280,55 +318,4 @@ PortalInputCapture::glibThread()
     LOG((CLOG_DEBUG "Shutting down GLib thread"));
 }
 
-PortalInputCapturePointerBarrier::PortalInputCapturePointerBarrier(PortalInputCapture& portal,
-                                                                   int x1, int y1, int x2, int y2) :
-    m_portal(portal),
-    m_id(0),
-    m_x1(x1),
-    m_y1(y1),
-    m_x2(x2),
-    m_y2(y2)
-{
-    static unsigned int next_id = 0;
-
-    m_id = ++next_id;
-    m_barrier =
-        XDP_INPUT_CAPTURE_POINTER_BARRIER(g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
-                                                       "id", m_id,
-                                                       "x1", x1,
-                                                       "x2", x2,
-                                                       "y1", y1,
-                                                       "y2", y2,
-                                                       NULL));
-    m_activeSignalID = g_signal_connect(G_OBJECT(m_barrier), "notify::is-active",
-                                         G_CALLBACK(cb_BarrierNotifyActiveCB),
-                                         this);
-}
-
-PortalInputCapturePointerBarrier::~PortalInputCapturePointerBarrier()
-{
-    LOG((CLOG_DEBUG "Deleting barier %d", m_id));
-    if (m_activeSignalID != 0)
-        g_signal_handler_disconnect(m_barrier, m_activeSignalID);
-    if (m_barrier != nullptr)
-        g_object_unref(m_barrier);
-}
-
-void
-PortalInputCapturePointerBarrier::cb_BarrierNotifyActive(XdpInputCapturePointerBarrier *barrier)
-{
-    assert(this->m_barrier == barrier);
-
-    g_object_get(barrier, "is-active",  &m_isActive, NULL);
-    LOG((CLOG_DEBUG "Barrier %d (%d/%d %d/%d) %s", m_id, m_x1, m_y1, m_x2, m_y2, m_isActive ? "active" : "failed"));
-
-    // We disconnect the signal handler. Once we know the barriers is
-    // valid (or not) we don't care if it gets disabled later.
-    g_signal_handler_disconnect(m_barrier, m_activeSignalID);
-    m_activeSignalID = 0;
-
-    // libportal guarantees that failed pointer barriers are signalled first
-    if (m_isActive)
-        m_portal.enable();
-}
 #endif

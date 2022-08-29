@@ -28,49 +28,6 @@
 #include <glib.h>
 #include <libportal/portal.h>
 
-class PortalInputCapturePointerBarrier {
-public:
-    PortalInputCapturePointerBarrier(PortalInputCapture &portal, int x1, int y1, int x2, int y2);
-    ~PortalInputCapturePointerBarrier();
-
-
-    bool isActive() const { return m_isActive; }
-    unsigned int getId()  { return m_id; }
-    XdpInputCapturePointerBarrier *getBarrier() const { return m_barrier; }
-
-    void cb_BarrierNotifyActive(XdpInputCapturePointerBarrier *barrier);
-
-    /// g_signal_connect callback wrapper
-    static void cb_BarrierNotifyActiveCB(XdpInputCapturePointerBarrier *barrier, GParamSpec *pspec, gpointer data) {
-        reinterpret_cast<PortalInputCapturePointerBarrier*>(data)->cb_BarrierNotifyActive(barrier);
-    } ;
-
-    PortalInputCapturePointerBarrier(const PortalInputCapturePointerBarrier& other):
-        m_portal(other.m_portal),
-        m_id(other.m_id),
-        m_x1(other.m_x1),
-        m_x2(other.m_x2),
-        m_y1(other.m_y1),
-        m_y2(other.m_y2),
-        m_isActive(other.m_isActive),
-        m_activeSignalID(other.m_activeSignalID),
-        m_barrier(g_object_ref(other.m_barrier))
-    {
-        // We need the copy construtor to exist for vector.resize() but it
-        // never needs to be called, the vector has all the objects and it's
-        // big enough that we never need reallocation.
-        assert(!"use a reference to this object instead");
-    }
-
-private:
-    PortalInputCapture& m_portal;
-    int m_x1, m_x2, m_y1, m_y2;
-    unsigned int m_id;
-    bool m_isActive;
-    XdpInputCapturePointerBarrier *m_barrier;
-    guint m_activeSignalID;
-};
-
 class PortalInputCapture {
 public:
     PortalInputCapture(EiScreen *screen, IEventQueue *events);
@@ -122,7 +79,7 @@ private:
 
     bool m_enabled;
 
-    std::vector<PortalInputCapturePointerBarrier> m_barriers;
+    std::vector<XdpInputCapturePointerBarrier*> m_barriers;
 };
 
 #endif
