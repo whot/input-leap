@@ -165,69 +165,7 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
                                               G_CALLBACK(cb_ZonesChangedCB),
                                               this);
 
-
-    for (auto b : m_barriers)
-        g_object_unref(b);
-    m_barriers.clear();
-
-    auto zones = xdp_input_capture_session_get_zones(session);
-    while (zones != nullptr) {
-        guint w, h;
-        gint x, y;
-        g_object_get(zones->data, "width", &w, "height", &h, "x", &x, "y", &y, NULL);
-
-        LOG((CLOG_DEBUG "Zone at %dx%d@%d,%d", w, h, x, y));
-
-        // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
-        // Since the implementation is supposed to reject the ones in the wrong
-        // place, we can just install barriers everywhere and let EIS figure it out.
-        // Also a lot easier to implement for now though it doesn't cover
-        // differently-sized screens...
-        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
-                                g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
-                                             "id", m_barriers.size(),
-                                             "x1", x,
-                                             "y1", y,
-                                             "x2", x + w,
-                                             "y2", y,
-                                             NULL)));
-        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
-                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
-                                          "id", m_barriers.size(),
-                                          "x1", x + w,
-                                          "y1", y,
-                                          "x2", x + w,
-                                          "y2", y + h,
-                                          NULL)));
-        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
-                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
-                                          "id", m_barriers.size(),
-                                          "x1", x,
-                                          "y1", y,
-                                          "x2", x,
-                                          "y2", y + h,
-                                          NULL)));
-        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
-                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
-                                          "id", m_barriers.size(),
-                                          "x1", x,
-                                          "y1", y + h,
-                                          "x2", x + w,
-                                          "y2", y + h,
-                                          NULL)));
-        zones = zones->next;
-    }
-
-    GList *list = NULL;
-    for (auto const &b : m_barriers)
-        list = g_list_append(list, b);
-    xdp_input_capture_session_set_pointer_barriers(m_session,
-                                                   list,
-                                                    nullptr, // cancellable
-                                                    [](GObject *obj, GAsyncResult *res, gpointer data) {
-                                                    reinterpret_cast<PortalInputCapture*>(data)->cb_SetPointerBarriers(obj, res);
-                                                    },
-                                                    this);
+    cb_ZonesChanged(m_session, nullptr);
 }
 
 void
@@ -300,7 +238,68 @@ PortalInputCapture::cb_Deactivated(XdpInputCaptureSession *session, GVariant *op
 void
 PortalInputCapture::cb_ZonesChanged(XdpInputCaptureSession *session, GVariant *options)
 {
-    LOG((CLOG_DEBUG "zones have changed!"));
+    for (auto b : m_barriers)
+        g_object_unref(b);
+    m_barriers.clear();
+
+    auto zones = xdp_input_capture_session_get_zones(session);
+    while (zones != nullptr) {
+        guint w, h;
+        gint x, y;
+        g_object_get(zones->data, "width", &w, "height", &h, "x", &x, "y", &y, NULL);
+
+        LOG((CLOG_DEBUG "Zone at %dx%d@%d,%d", w, h, x, y));
+
+        // Hardcoded behaviour: our pointer barriers are always at the edges of all zones.
+        // Since the implementation is supposed to reject the ones in the wrong
+        // place, we can just install barriers everywhere and let EIS figure it out.
+        // Also a lot easier to implement for now though it doesn't cover
+        // differently-sized screens...
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                                g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                             "id", m_barriers.size(),
+                                             "x1", x,
+                                             "y1", y,
+                                             "x2", x + w,
+                                             "y2", y,
+                                             NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x + w,
+                                          "y1", y,
+                                          "x2", x + w,
+                                          "y2", y + h,
+                                          NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x,
+                                          "y1", y,
+                                          "x2", x,
+                                          "y2", y + h,
+                                          NULL)));
+        m_barriers.push_back(XDP_INPUT_CAPTURE_POINTER_BARRIER(
+                             g_object_new(XDP_TYPE_INPUT_CAPTURE_POINTER_BARRIER,
+                                          "id", m_barriers.size(),
+                                          "x1", x,
+                                          "y1", y + h,
+                                          "x2", x + w,
+                                          "y2", y + h,
+                                          NULL)));
+        zones = zones->next;
+    }
+
+    GList *list = NULL;
+    for (auto const &b : m_barriers)
+        list = g_list_append(list, b);
+    xdp_input_capture_session_set_pointer_barriers(m_session,
+                                                   list,
+                                                    nullptr, // cancellable
+                                                    [](GObject *obj, GAsyncResult *res, gpointer data) {
+                                                    reinterpret_cast<PortalInputCapture*>(data)->cb_SetPointerBarriers(obj, res);
+                                                    },
+                                                    this);
 }
 
 void
