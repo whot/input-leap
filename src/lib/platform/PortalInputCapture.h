@@ -38,11 +38,11 @@ public:
     unsigned int getId()  { return m_id; }
     XdpInputCapturePointerBarrier *getBarrier() const { return m_barrier; }
 
-    void cb_BarrierActive(XdpInputCapturePointerBarrier *barrier, gboolean active);
+    void cb_BarrierNotifyActive(XdpInputCapturePointerBarrier *barrier);
 
     /// g_signal_connect callback wrapper
-    static void cb_BarrierActiveCB(XdpInputCapturePointerBarrier *barrier, gboolean active, gpointer data) {
-        reinterpret_cast<PortalInputCapturePointerBarrier*>(data)->cb_BarrierActive(barrier, active);
+    static void cb_BarrierNotifyActiveCB(XdpInputCapturePointerBarrier *barrier, GParamSpec *pspec, gpointer data) {
+        reinterpret_cast<PortalInputCapturePointerBarrier*>(data)->cb_BarrierNotifyActive(barrier);
     } ;
 
     PortalInputCapturePointerBarrier(const PortalInputCapturePointerBarrier& other):
@@ -82,6 +82,7 @@ private:
     gboolean timeoutHandler();
     gboolean initInputCaptureSession();
     void cb_initInputCaptureSession(GObject *object, GAsyncResult *res);
+    void cb_SetPointerBarriers(GObject *object, GAsyncResult *res);
     void cb_SessionStarted(GObject *object, GAsyncResult *res);
     void cb_SessionClosed(XdpSession *session);
     void cb_Activated(XdpInputCaptureSession *session, GVariant *options);

@@ -196,12 +196,29 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
         zones = zones->next;
     }
 
-    std::vector<XdpInputCapturePointerBarrier*> bs;
-    for (auto const &b : m_barriers) {
-        bs.emplace_back(b.getBarrier());
+    GList *list = NULL;
+    for (auto const &b : m_barriers)
+        list = g_list_append(list, b.getBarrier());
+    xdp_input_capture_session_set_pointer_barriers(m_session,
+                                                   list,
+                                                    nullptr, // cancellable
+                                                    [](GObject *obj, GAsyncResult *res, gpointer data) {
+                                                    reinterpret_cast<PortalInputCapture*>(data)->cb_SetPointerBarriers(obj, res);
+                                                    },
+                                                    this);
+}
+
+void
+PortalInputCapture::cb_SetPointerBarriers(GObject *object, GAsyncResult *res)
+{
+    g_autoptr(GError) error = NULL;
+
+    auto failed_list = xdp_input_capture_session_set_pointer_barriers_finish(m_session, res, &error);
+    if (failed_list) {
+        LOG((CLOG_WARN "Failed to apply some barriers"));
+        // We don't actually care about this...
     }
-    bs.emplace_back(nullptr);
-    xdp_input_capture_session_set_pointer_barriers(session, bs.data(), NULL);
+    g_list_free_full(failed_list, g_object_unref);
 }
 
 gboolean
@@ -283,8 +300,8 @@ PortalInputCapturePointerBarrier::PortalInputCapturePointerBarrier(PortalInputCa
                                                        "y1", y1,
                                                        "y2", y2,
                                                        NULL));
-    m_activeSignalID = g_signal_connect(G_OBJECT(m_barrier), "active",
-                                         G_CALLBACK(cb_BarrierActiveCB),
+    m_activeSignalID = g_signal_connect(G_OBJECT(m_barrier), "notify::is-active",
+                                         G_CALLBACK(cb_BarrierNotifyActiveCB),
                                          this);
 }
 
@@ -298,20 +315,20 @@ PortalInputCapturePointerBarrier::~PortalInputCapturePointerBarrier()
 }
 
 void
-PortalInputCapturePointerBarrier::cb_BarrierActive(XdpInputCapturePointerBarrier *barrier,
-                                                   gboolean active)
+PortalInputCapturePointerBarrier::cb_BarrierNotifyActive(XdpInputCapturePointerBarrier *barrier)
 {
     assert(this->m_barrier == barrier);
-    LOG((CLOG_DEBUG "Barrier %d (%d/%d %d/%d) %s", m_id, m_x1, m_y1, m_x2, m_y2, active ? "active" : "failed"));
 
-    m_isActive = active;
+    g_object_get(barrier, "is-active",  &m_isActive, NULL);
+    LOG((CLOG_DEBUG "Barrier %d (%d/%d %d/%d) %s", m_id, m_x1, m_y1, m_x2, m_y2, m_isActive ? "active" : "failed"));
 
     // We disconnect the signal handler. Once we know the barriers is
     // valid (or not) we don't care if it gets disabled later.
     g_signal_handler_disconnect(m_barrier, m_activeSignalID);
+    m_activeSignalID = 0;
 
     // libportal guarantees that failed pointer barriers are signalled first
-    if (active)
+    if (m_isActive)
         m_portal.enable();
 }
 #endif
