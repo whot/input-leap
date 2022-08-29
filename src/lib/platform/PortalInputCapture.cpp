@@ -90,7 +90,7 @@ int PortalInputCapture::fakeEISfd()
     auto path = std::getenv("LIBEI_SOCKET");
 
     if (!path) {
-        LOG((CLOG_DEBUG "Cannot fake EIS socket, LIBEIS_SOCKET environment variable is unset"));
+        LOG((CLOG_DEBUG "Cannot fake EIS socket, LIBEI_SOCKET environment variable is unset"));
         return -1;
     }
 
