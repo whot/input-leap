@@ -26,11 +26,20 @@
 #include <sys/un.h> // for EIS fd hack, remove
 #include <sys/socket.h> // for EIS fd hack, remove
 
+enum signals {
+    SESSION_CLOSED,
+    ACTIVATED,
+    DEACTIVATED,
+    ZONES_CHANGED,
+    _N_SIGNALS,
+};
+
 PortalInputCapture::PortalInputCapture(EiScreen *screen, IEventQueue* events) :
     m_screen(screen),
     m_portal(xdp_portal_new()),
     m_events(events),
-    m_session(nullptr)
+    m_session(nullptr),
+    m_signals(_N_SIGNALS)
 {
     m_gmainloop = g_main_loop_new(NULL, true);
     m_glibthread = new Thread([this](){ glibThread(); });
@@ -56,13 +65,10 @@ PortalInputCapture::~PortalInputCapture()
     }
 
     if (m_session) {
-        g_signal_handler_disconnect(m_session, m_sessionSignalID);
-        if (m_activatedSignalID != 0)
-            g_signal_handler_disconnect(m_session, m_activatedSignalID);
-        if (m_deactivatedSignalID != 0)
-            g_signal_handler_disconnect(m_session, m_deactivatedSignalID);
-        if (m_zonesChangedSignalID != 0)
-            g_signal_handler_disconnect(m_session, m_zonesChangedSignalID);
+        for (auto sigid: m_signals) {
+            if (sigid != 0)
+                g_signal_handler_disconnect(m_session, sigid);
+        }
         g_object_unref(m_session);
     }
 
@@ -112,7 +118,8 @@ PortalInputCapture::cb_SessionClosed(XdpSession *session)
     g_main_loop_quit(m_gmainloop);
     m_events->addEvent(Event(Event::kQuit));
 
-    g_signal_handler_disconnect(session, m_sessionSignalID);
+    g_signal_handler_disconnect(session, m_signals[SESSION_CLOSED]);
+    m_signals[SESSION_CLOSED] = 0;
 }
 
 void
@@ -152,18 +159,18 @@ PortalInputCapture::cb_initInputCaptureSession(GObject *object, GAsyncResult *re
 
     // FIXME: the lambda trick doesn't work here for unknown reasons, we need
     // the static function
-    m_sessionSignalID = g_signal_connect(G_OBJECT(session), "closed",
-                                         G_CALLBACK(cb_SessionClosedCB),
-                                         this);
-    m_activatedSignalID = g_signal_connect(G_OBJECT(m_session), "activated",
-                                         G_CALLBACK(cb_ActivatedCB),
-                                         this);
-    m_deactivatedSignalID = g_signal_connect(G_OBJECT(m_session), "deactivated",
-                                         G_CALLBACK(cb_DeactivatedCB),
-                                         this);
-    m_zonesChangedSignalID = g_signal_connect(G_OBJECT(m_session), "zones-changed",
-                                              G_CALLBACK(cb_ZonesChangedCB),
+    m_signals[SESSION_CLOSED] = g_signal_connect(G_OBJECT(session), "closed",
+                                                G_CALLBACK(cb_SessionClosedCB),
+                                                this);
+    m_signals[ACTIVATED] =g_signal_connect(G_OBJECT(m_session), "activated",
+                                           G_CALLBACK(cb_ActivatedCB),
+                                           this);
+    m_signals[DEACTIVATED] = g_signal_connect(G_OBJECT(m_session), "deactivated",
+                                              G_CALLBACK(cb_DeactivatedCB),
                                               this);
+    m_signals[ZONES_CHANGED] = g_signal_connect(G_OBJECT(m_session), "zones-changed",
+                                                G_CALLBACK(cb_ZonesChangedCB),
+                                                this);
 
     cb_ZonesChanged(m_session, nullptr);
 }

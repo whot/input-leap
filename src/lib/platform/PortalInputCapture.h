@@ -72,10 +72,7 @@ private:
     XdpPortal *m_portal;
     XdpInputCaptureSession *m_session;
 
-    guint m_sessionSignalID;
-    guint m_activatedSignalID;
-    guint m_deactivatedSignalID;
-    guint m_zonesChangedSignalID;
+    std::vector<guint> m_signals;
 
     bool m_enabled;
 
