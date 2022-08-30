@@ -277,24 +277,28 @@ EiScreen::enter()
 {
     LOG((CLOG_DEBUG "%s screen enter", m_isPrimary ? "primary" : "secondary"));
     m_isOnScreen = true;
-    if (m_ei_pointer)
-        ei_device_start_emulating(m_ei_pointer);
-    if (m_ei_keyboard)
-        ei_device_start_emulating(m_ei_keyboard);
-    if (m_ei_abs)
-        ei_device_start_emulating(m_ei_abs);
+    if (!m_isPrimary) {
+        if (m_ei_pointer)
+            ei_device_start_emulating(m_ei_pointer);
+        if (m_ei_keyboard)
+            ei_device_start_emulating(m_ei_keyboard);
+        if (m_ei_abs)
+            ei_device_start_emulating(m_ei_abs);
+    }
 }
 
 bool
 EiScreen::leave()
 {
     LOG((CLOG_DEBUG "%s screen leave", m_isPrimary ? "primary" : "secondary"));
-    if (m_ei_pointer)
-        ei_device_stop_emulating(m_ei_pointer);
-    if (m_ei_keyboard)
-        ei_device_stop_emulating(m_ei_keyboard);
-    if (m_ei_abs)
-        ei_device_stop_emulating(m_ei_abs);
+    if (!m_isPrimary) {
+        if (m_ei_pointer)
+            ei_device_stop_emulating(m_ei_pointer);
+        if (m_ei_keyboard)
+            ei_device_stop_emulating(m_ei_keyboard);
+        if (m_ei_abs)
+            ei_device_stop_emulating(m_ei_abs);
+    }
 
     m_isOnScreen = false;
     return true;
