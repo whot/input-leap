@@ -475,9 +475,15 @@ EiScreen::onMotionEvent(struct ei_event *event)
     m_yCursor += dy;
 
     // motion on primary screen
-    if (m_isOnScreen)
-        m_events->addEvent(Event(m_events->forIPrimaryScreen().motionOnPrimary(),
-                                 MotionInfo::alloc(m_xCursor, m_yCursor)));
+    if (m_isOnScreen) {
+         m_events->addEvent(Event(m_events->forIPrimaryScreen().motionOnPrimary(),
+                                  getEventTarget(),
+                                  MotionInfo::alloc(m_xCursor, m_yCursor)));
+    } else {
+        // motion on secondary screen
+        auto t = m_events->forIPrimaryScreen().motionOnSecondary();
+        m_events->addEvent(Event(t, getEventTarget(), MotionInfo::alloc(dx, dy)));
+    }
 }
 
 void
